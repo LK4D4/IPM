@@ -1,0 +1,7 @@
+#!/bin/sh
+
+iconv -f cp1251 -t utf8 vertices.h > utf8/vertices.h
+iconv -f cp1251 -t utf8 farfield.h > utf8/farfield.h
+iconv -f cp1251 -t utf8 integral.cpp > utf8/integral.cpp
+iconv -f cp1251 -t utf8 basepoints.cpp > utf8/basepoints.cpp
+iconv -f cp1251 -t utf8 funcs.h > utf8/funcs.h

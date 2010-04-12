@@ -1,0 +1,5 @@
+#!/bin/sh
+
+iconv -f cp1251 -t utf8 tgen.h > utf8/tgen.h
+iconv -f cp1251 -t utf8 tgen.cpp > utf8/tgen.cpp
+iconv -f cp1251 -t utf8 param.h > utf8/param.h

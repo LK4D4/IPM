@@ -1,0 +1,8 @@
+6 - Maximum number of surface
+Surface number -- Boundary condition type
+1                 450  !!!4  !!!5               Z=0
+3                 450  !!!2                           Y=Ymax
+5                 450  !!!2                     X=Xmax 
+2                 450  !!!2                           Z=Zmax 
+4                 450  !!!2  !!!4  !!!5               Y=0 
+6                 450  !!!2  !!!4  !!!5         X=0 

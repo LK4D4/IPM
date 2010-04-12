@@ -1,0 +1,4 @@
+PROJECT(intersect)
+
+ADD_EXECUTABLE(intersect main.cpp funcs.cpp vertices.cpp basepoints.cpp integral.cpp tgen.cpp graph.cpp)
+

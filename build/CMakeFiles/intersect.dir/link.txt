@@ -1,0 +1,1 @@
+/usr/bin/c++      CMakeFiles/intersect.dir/main.cpp.o CMakeFiles/intersect.dir/funcs.cpp.o CMakeFiles/intersect.dir/vertices.cpp.o CMakeFiles/intersect.dir/basepoints.cpp.o CMakeFiles/intersect.dir/integral.cpp.o CMakeFiles/intersect.dir/tgen.cpp.o CMakeFiles/intersect.dir/graph.cpp.o  -o intersect -rdynamic 

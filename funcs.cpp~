@@ -1,0 +1,603 @@
+// Copyright (C) M.Iakobovski, E.Kornilina, A.Morozov, 2010, v.1
+
+#include "funcs.h"
+#include "farfield.h"
+#include "vertices.h"
+
+bool ellipse(CoordXYZ a){ //функция эллипсоида
+    if((kva((a[0]-e_x0)/(e_a)) + kva((a[1]-e_y0)/(e_b)) + kva((a[2]-e_z0)/(e_c)))<1) return true;
+    return false;
+}
+
+bool parallel(CoordXYZ a){ //функция параллелепипеда
+		if((a[0] < p_x1 && a[0] > p_x0) && (a[1] < p_y1 && a[1] > p_y0) && (a[2] < p_z1 && a[2] > p_z0)) return true;
+		return false;
+}
+
+bool cone(CoordXYZ a){ //функция конуса
+	if(a[0] <= k_x0 || a[0] >= k_x1) return false;
+//	double temp_a = (k_a1-k_a0)*(a[0] - k_x0)/(k_x1 - k_x0) + k_a0; double temp_b = (k_b1-k_b0)*(a[0] - k_x0)/(k_x1 - k_x0) + k_b0;
+//	if(kva(a[1]-k_y0/temp_a) + kva(a[2]-k_z0/temp_b) < 1) return true;
+    if(( kva((a[1]-k_y0)/(e_b)) + kva((a[2]-k_z0)/(e_c)))<1) return true;
+
+	return false;
+}
+
+double mydistance(CoordXYZ a, CoordXYZ b){ //расстояние между точками
+		return sqrt(kva(a[0]-b[0])+kva(a[1]-b[1])+kva(a[2]-b[2]));
+}
+
+bool isIn(CoordXYZ a){ //определяет внутри или снаружи поверхности точка
+	switch (SurfaceType){
+		case 0: return ellipse(a);//внутри эллипсоида
+		case 1: return parallel(a); //внутри параллелепипеда
+		case 2: return cone(a); //внутри конуса
+	}
+	return false;
+}
+
+bool isIntersect(CoordXYZ n, CoordXYZ m){ //функция возвращает true, если ребро пересекает поверхность и false, если нет
+	if(isIn(m)!= isIn(n)) return true;
+	return false;
+}
+
+CoordXYZ intersectSearch(CoordXYZ a, CoordXYZ b){ //ищем пересечение ребра с поверхностью
+	CoordXYZ k;
+	while(mydistance(a,b) > 1e-5){
+		CoordXYZ c(3);
+		c[0] = (a[0]+b[0])/2; c[1] = (a[1]+b[1])/2; c[2] = (a[2]+b[2])/2;
+		if(isIn(c) != isIn(a)) b = c;
+		else a = c;
+	}
+	return a;
+}
+
+double determinant(CoordXYZ x, CoordXYZ y, CoordXYZ z){
+	return x[0]*y[1]*z[2]-x[0]*y[2]*z[1]-x[1]*y[0]*z[2]+x[1]*y[2]*z[0]+x[2]*y[0]*z[1]-x[2]*y[1]*z[0];
+}
+
+int IsPresent_CheckedAndMovedInside(SurfacePoints &p, int *present, int a, int b);
+
+CoordXYZ GetCoordSurf(SurfaceCoord c, PointsXYZ &m){ //выдает координаты точек, заданных структурой SurfaceCoord
+	CoordXYZ t(3);
+	if(c.a_index<0 || c.b_index<0 || (size_t)c.a_index>=m.size() || (size_t)c.b_index>=m.size() )
+	{
+	    cout << " ERROR 7 : c.a_index=" << c.a_index << " c.b_index=" << c.b_index << " m=" << m.size() << endl;
+	    exit(1);
+	}
+
+	double lambda = c.delta;// /(1-c.delta);
+//	t[0] = (m[c.a_index][0]+lambda*m[c.b_index][0])/(1+lambda);
+//	t[1] = (m[c.a_index][1]+lambda*m[c.b_index][1])/(1+lambda);
+//	t[2] = (m[c.a_index][2]+lambda*m[c.b_index][2])/(1+lambda);
+	t[0] = (m[c.a_index][0]*(1-lambda)+lambda*m[c.b_index][0]);
+	t[1] = (m[c.a_index][1]*(1-lambda)+lambda*m[c.b_index][1]);
+	t[2] = (m[c.a_index][2]*(1-lambda)+lambda*m[c.b_index][2]);
+
+	return t;
+}
+/*поиск поверхности, возвращает вектор длины 0, если тетраэдр не пересекает поверхность,
+длины 3, если поверхность треугольник, 4, если четырехугольник. В векторе структуры типа SurfaceCoord.
+delta вычисляется от меньшей по номеру вершины к большей.*/
+SurfacePoints FindSurface(Tetras a, PointsXYZ& mesh){
+	SurfaceCoord temp;
+	vector<CoordXYZ> tempc; //координаты вершин поверхности
+	SurfacePoints ret; //поверхность
+	int present[6],k=0;
+
+	for(int i=0;i<6;i++) present[i]=-1;
+
+	/*
+	В массиве present хранятся номера позиций в массиве ret? соответствующие ребрам в следующем порядке
+	(0,1)
+	(0,2)
+	(0,3)
+	(1,2)
+	(1,3)
+	(2,3)
+	*/
+	int f = 1;
+//проверяем разные ребра тетраэдра на пересечения
+	for(int i = 0;i<3;i++)
+		for(int j=i+1;j<4;j++){
+			if(isIntersect(mesh[a[i]],mesh[a[j]])){
+				if(a[i] < a[j]){
+					CoordXYZ p = intersectSearch(mesh[a[i]],mesh[a[j]]);
+					temp.a_index=a[i]; temp.b_index=a[j];
+					temp.delta = (mydistance(mesh[a[i]],p)/mydistance(mesh[a[i]],mesh[a[j]]));
+					ret.push_back(temp);
+					tempc.push_back(p);
+				}
+				else {
+					CoordXYZ p = intersectSearch(mesh[a[j]],mesh[a[i]]);
+					temp.a_index=a[j]; temp.b_index=a[i];
+					temp.delta = (mydistance(mesh[a[j]],p)/mydistance(mesh[a[i]],mesh[a[j]]));
+					ret.push_back(temp);
+					tempc.push_back(p);
+				}
+				present[f]=k++; f++;
+			}
+		}
+
+	if(ret.size()==4) {
+//        cout<< present[0] << " " <<present[1] << " " <<present[2] << " " <<present[3] << " " <<present[4] << " " <<present[5] << endl ;
+        if(!IsPresent_CheckedAndMovedInside(ret,present,0,5))
+        if(!IsPresent_CheckedAndMovedInside(ret,present,1,4))
+        if(!IsPresent_CheckedAndMovedInside(ret,present,2,3))
+            {
+                cout << " ERROR CheckAndMoveInside!\n" << endl;
+                exit(0);
+            }
+//        cout<< present[0] << " " <<present[1] << " " <<present[2] << " " <<present[3] << " " <<present[4] << " " <<present[5] << endl << endl;
+
+    }
+    CoordXYZ te;
+	for(int i = 0; i < ret.size(); i++){
+		te = GetCoordSurf(ret[i],mesh);
+		for(int j = 0; j < a.size(); j++){
+			if(te[0] == mesh[a[j]][0] && te[1] == mesh[a[j]][1] && te[2] == mesh[a[j]][2]) cout << "MARK!" << endl;
+		}
+	}
+	return ret;
+}
+
+void swap(SurfacePoints &SurfaceList, int i1, int i2);
+void swap(SurfacePoints &SurfaceList, int i1, int i2)
+{
+    // меняем местами записи i1 и i2 в массиве p
+
+    if(1)
+    {
+    int t;
+    double d;
+    t=SurfaceList[i2].a_index; SurfaceList[i2].a_index=SurfaceList[i1].a_index; SurfaceList[i1].a_index=t;
+    t=SurfaceList[i2].b_index; SurfaceList[i2].b_index=SurfaceList[i1].b_index; SurfaceList[i1].b_index=t;
+    d=SurfaceList[i2].delta;   SurfaceList[i2].delta=SurfaceList[i1].delta;     SurfaceList[i1].delta=d;
+    }
+
+}
+
+int IsPresent_CheckedAndMovedInside(SurfacePoints &p, int *present, int a, int b)
+{
+    // return 1 - если перестановка выполнена или уже не нужна;
+    //        0 - ищите дальше
+
+    // i1, i2 - позиции в массиве p, в которых записана информация о пересечениях с ребрами a и b
+
+    int i1=present[a];
+    int i2=present[b];
+    int i3;
+    int c;
+
+    if(i1>=0 && i2>=0) // оба ребра есть
+    {
+        if(i1==0 || i1==3) // не там записано, надо переставить внутрь
+        {
+            for(c=0;c<6;c++)
+            {
+                i3=present[c];
+                if( (c!=a) && (c!=b) && ((i3==1)||(i3==2)))
+                    break;
+            }
+            // нашли очередное существующее ребро, отличное от выделенных
+
+            swap(p,i1,i3); // ставим на найденную позицию
+            present[a]=i3;
+            present[c]=i1;
+        }
+
+        i1=present[a];
+        i2=present[b];
+
+        if(i2==0 || i2==3) // не там записано, надо переставить внутрь
+        {
+            for(c=0;c<6;c++)
+            {
+                i3=present[c];
+                if( (c!=a) && (c!=b) && ((i3==1)||(i3==2)))
+                    break;
+            }
+            // нашли очередное существующее ребро, отличное от выделенных
+
+            swap(p,i2,i3); // ставим на найденную позицию
+            present[b]=i3;
+            present[c]=i2;
+        }
+        return 1;
+    }
+
+    return 0;
+}
+
+double ScalarProduct(CoordXYZ a, CoordXYZ b) {
+	return a[0]*b[0] + a[1]*b[1] + a[2]*b[2];
+}
+
+double keisu(CoordXYZ a) {
+	return sqrt(kva(a[0]) + kva(a[1]) + kva(a[2]));
+}
+
+TriangleParams GetTriangleParams(SurfacePoints &s, PointsXYZ &m) { //считает площадь поверхности
+	// Сферические треугольники
+	TriangleParams ret;
+	double a, b, c, p, eps;
+	CoordXYZ vex[3];
+	for (int i = 0; i < 3;i++) vex[i] = GetCoordSurf(s[i], m);
+	ret.center.resize(3);
+	ret.center[0] = (vex[0][0]+vex[1][0]+vex[2][0])/3;
+	ret.center[1] = (vex[0][1]+vex[1][1]+vex[2][1])/3;
+	ret.center[2] = (vex[0][2]+vex[1][2]+vex[2][2])/3;
+	CoordXYZ norm(3);
+	norm[0] = ret.center[0] - e_x0;
+	norm[1] = ret.center[1] - e_y0;
+	norm[2] = ret.center[2] - e_z0;
+	ret.normal.resize(3);
+	ret.normal[0] = norm[0]/keisu(norm);
+	ret.normal[1] = norm[1]/keisu(norm);
+	ret.normal[2] = norm[2]/keisu(norm);
+	CoordXYZ vec[3];
+	for (int i = 0; i < 3; i++) {
+		vec[i].resize(3);
+		vec[i][0] = vex[i][0] - e_x0;
+		vec[i][1] = vex[i][1] - e_y0;
+		vec[i][2] = vex[i][2] - e_z0;
+	}
+	a = acos(ScalarProduct(vec[0], vec[1]) / (keisu(vec[0]) * keisu(vec[1])));
+	b = acos(ScalarProduct(vec[1], vec[2]) / (keisu(vec[1]) * keisu(vec[2])));
+	c = acos(ScalarProduct(vec[2], vec[0]) / (keisu(vec[2]) * keisu(vec[0])));
+	p = (a+b+c)/2;
+	if(!a || !b || !c) ret.area = 0;
+	else {
+		eps = atan(sqrt(fabs(tan(p/2)*tan((p-a)/2)*tan((p-b)/2)*tan((p-c)/2))))*4;
+		ret.area = eps*kva(e_a);
+	}
+
+	return ret;
+}
+
+int GetCellParams(  CoordXYZ r[3], // массив координат вершин треугольника
+                    double &cell_square,
+                    CoordXYZ &cell_normal,
+					CoordXYZ &cell_mass_centre);
+
+double V_pyr_of_sph(CoordXYZ p, CoordXYZ q, CoordXYZ g){
+    CoordXYZ a(3),b(3),c(3);
+
+    a[0]=p[0]-e_x0; a[1]=p[1]-e_y0; a[2]=p[2]-e_z0;
+    b[0]=q[0]-e_x0; b[1]=q[1]-e_y0; b[2]=q[2]-e_z0;
+    c[0]=g[0]-e_x0; c[1]=g[1]-e_y0; c[2]=g[2]-e_z0;
+
+	return
+	(
+	(a[0])*(b[1])*(c[2])-
+	(a[0])*(b[2])*(c[1])-
+	(a[1])*(b[0])*(c[2])+
+	(a[1])*(b[2])*(c[0])+
+	(a[2])*(b[0])*(c[1])-
+	(a[2])*(b[1])*(c[0])
+	)
+	/6.;
+}
+
+void CheckTrgSurface(Surfaces &SurfaceList, PointsXYZ &mesh){
+	int err=0;
+	int ns=SurfaceList.size();
+    CoordXYZ x[3];
+
+	for (int i = 0; i < 3; i++)
+      x[i].resize(3);
+
+    for(int j=0;j<ns;j++)
+    {
+      for (size_t i = 0; i < SurfaceList[j].size(); i++)
+        {
+        int ip1=SurfaceList[j][i].a_index;
+        int ip2=SurfaceList[j][i].b_index;
+        double delta=SurfaceList[j][i].delta;
+
+        for(int l=0;l<3;l++)
+                x[i][l]=mesh[ip1][l]*(1-delta)+mesh[ip2][l]*delta;
+
+        }
+
+      double v1=V_pyr_of_sph(x[0],x[1],x[2]);
+      double v2=V_pyr_of_sph(x[0],x[2],x[1]);
+
+      if(v1<0)
+        {
+        cout << j << " Error v1 = " << v1 << " < 0 ; v2 = " << v2 << endl;
+        err++;
+
+        if(1)
+        {
+        int t;
+        double d;
+        t=SurfaceList[j][2].a_index; SurfaceList[j][2].a_index=SurfaceList[j][1].a_index; SurfaceList[j][1].a_index=t;
+        t=SurfaceList[j][2].b_index; SurfaceList[j][2].b_index=SurfaceList[j][1].b_index; SurfaceList[j][1].b_index=t;
+        d=SurfaceList[j][2].delta;   SurfaceList[j][2].delta=SurfaceList[j][1].delta;     SurfaceList[j][1].delta=d;
+        }
+
+        }
+    }
+
+    cout << "Check: number of incorrect faces = " << err << endl ;
+
+}
+
+/*
+std::ofstream fout1("res_w1.wff");
+int kp=1;
+void PutTrgToWff(CoordXYZ x[3]);
+
+void PutTrgToWff(CoordXYZ x[3]){
+
+		for (size_t i = 0; i < 3; i++)
+		{
+			fout1 << "v" ;
+			for(int l=0;l<3;l++)
+			{
+				fout1 << " " << x[i][l] ;
+			}
+			fout1 << endl;
+		}
+
+        fout1 << "f " << kp << " " << kp+1 << " " << kp+2 << endl;
+
+		kp+=3; // номер следующей точки
+}
+*/
+
+void PutSurface(char *name, Surfaces &s, PointsXYZ &m){
+
+	int ns=s.size();
+    CoordXYZ x[4];
+    for (int i = 0; i < 3; i++)
+        x[i].resize(3);
+
+	cout << "SurfaceList.size= " << ns << endl;
+	std::ofstream fout(name);
+
+	int l,count_of_zerro=0;
+
+    cout. precision (5);
+	for(int j=0;j<ns;j++)
+	{
+		for (size_t i = 0; i < s[j].size(); i++)
+			x[i] = GetCoordSurf(s[j][i],m);
+
+        double a,b,c,p;
+        a = mydistance(x[0],x[1]);
+        b = mydistance(x[1],x[2]);
+        c = mydistance(x[0],x[2]);
+        p = (a + b + c) / 2;
+        double S= sqrt(p*(p-a)*(p-b)*(p-c));
+
+        if(S<1e-12)
+            continue;
+
+        fout << j << "\t" << S ;
+
+		for (size_t i = 0; i < s[j].size(); i++)
+            for(l=0;l<3;l++)
+                fout << "\t" << x[i][l] ;
+
+		for (size_t i = 0; i < s[j].size(); i++)
+            fout << "\t" << (s[j][i]).a_index << "\t" << s[j][i].b_index << "\t" << s[j][i].delta;
+
+		fout << endl;
+
+//        if(j>=100)            break;
+	}
+
+//	t[0] = (m[c.a_index][0]*(1-lambda)+lambda*m[c.b_index][0]);
+
+	fout.close();
+    cout << " count_of_zerro=" << count_of_zerro << endl;
+}
+
+void CreateWff(char *name, Surfaces &s, PointsXYZ &m){
+
+	int ns=s.size();
+	cout << "SurfaceList.size= " << ns << endl;
+	std::ofstream fout(name);
+
+	int k=1,l,count_of_zerro=0;
+
+	for(int j=0;j<ns;j++)
+	{
+		CoordXYZ x[3];
+		for (int i = 0; i < 3; i++)
+			x[i].resize(3);
+		for (size_t i = 0; i < s[j].size(); i++)
+		{
+			x[i] = GetCoordSurf(s[j][i],m);
+
+			fout << "v" ;
+			for(l=0;l<3;l++)
+			{
+				fout << " " << x[i][l] ;
+			}
+			fout << endl;
+		}
+
+        double cell_square;
+        CoordXYZ cell_normal(3), cell_mass_centre(3);
+
+        if (GetCellParams(x, cell_square, cell_normal,cell_mass_centre))
+        {
+
+            count_of_zerro++;
+        }
+            fout << "f " << k << " " << k+1 << " " << k+2 << endl;
+
+		k+=s[j].size(); // номер следующей точки
+
+// нарисуем нормали
+if(1)
+{
+    double sc=.01;
+
+        fout << "v" ;
+        for(l=0;l<3;l++)
+        {
+            fout << " " << cell_mass_centre[l] ;
+        }
+        fout << endl;
+
+        fout << "v" ;
+        for(l=0;l<3;l++)
+        {
+            fout << " " << cell_mass_centre[l] + cell_normal[l]*cell_square*sc;
+        }
+        fout << endl;
+
+        fout << "f " << k << " " << k+1 << " " << k+1 << endl;
+
+        k+=2;
+}
+        if(k>=32000)
+            break;
+	}
+
+	fout.close();
+    cout << " count_of_zerro=" << count_of_zerro << endl;
+}
+
+Surfaces DivideSquares(SurfacePoints &sur, PointsXYZ &mesh){
+	Surfaces ret(2);
+	ret[0].resize(3); ret[1].resize(3);
+
+	ret[0][0].a_index=sur[0].a_index; ret[0][0].b_index=sur[0].b_index; ret[0][0].delta=sur[0].delta;
+	ret[0][1].a_index=sur[1].a_index; ret[0][1].b_index=sur[1].b_index; ret[0][1].delta=sur[1].delta;
+	ret[0][2].a_index=sur[2].a_index; ret[0][2].b_index=sur[2].b_index; ret[0][2].delta=sur[2].delta;
+
+	ret[1][0].a_index=sur[1].a_index; ret[1][0].b_index=sur[1].b_index; ret[1][0].delta=sur[1].delta;
+	ret[1][1].a_index=sur[2].a_index; ret[1][1].b_index=sur[2].b_index; ret[1][1].delta=sur[2].delta;
+	ret[1][2].a_index=sur[3].a_index; ret[1][2].b_index=sur[3].b_index; ret[1][2].delta=sur[3].delta;
+
+	return ret;
+}
+
+int RoundControl(SurfacePoints &s, PointsXYZ &mesh){
+
+	CoordXYZ vec1(3), vec2(3), vec3(3);
+	CoordXYZ vex[3];
+//	bool detector;
+
+    if(s.size()!=3) { cout << " ERROR 8_3 " << s.size() << "!=3\n"  ; return 1;}
+
+	for(int i = 0; i < 3; ++i){
+		vex[i] = GetCoordSurf(s[i],mesh);
+	}
+
+	vec1[0] = vex[1][0] - vex[0][0]; vec1[1] = vex[1][1] - vex[0][1]; vec1[2] = vex[1][2] - vex[0][2];
+	vec2[0] = vex[2][0] - vex[0][0]; vec2[1] = vex[2][1] - vex[0][1]; vec2[2] = vex[2][2] - vex[0][2];
+	if(s[0].delta == 0){
+		vec3[0] = mesh[s[0].b_index][0] - vex[0][0];
+		vec3[1] = mesh[s[0].b_index][1] - vex[0][1];
+		vec3[2] = mesh[s[0].b_index][2] - vex[0][2];
+		if(!isIn(mesh[s[0].b_index])){
+			if(determinant(vec3,vec1,vec2)<0) {
+				SurfaceCoord t;
+				t = s[1];
+				s[1] = s[2];
+				s[2] = t;
+			}
+		}
+		else{
+			if(determinant(vec3,vec1,vec2)>0) {
+				SurfaceCoord t;
+				t = s[1];
+				s[1] = s[2];
+				s[2] = t;
+			}
+		}
+	}
+	else if(s[0].delta == 1){
+		vec3[0] = mesh[s[0].a_index][0] - vex[0][0];
+		vec3[1] = mesh[s[0].a_index][1] - vex[0][1];
+		vec3[2] = mesh[s[0].a_index][2] - vex[0][2];
+		if(!isIn(mesh[s[0].a_index])){
+			if(determinant(vec3,vec1,vec2)<0) {
+				SurfaceCoord t;
+				t = s[1];
+				s[1] = s[2];
+				s[2] = t;
+			}
+		}
+		else{
+			if(determinant(vec3,vec1,vec2)>0) {
+				SurfaceCoord t;
+				t = s[1];
+				s[1] = s[2];
+				s[2] = t;
+			}
+		}
+	}
+	else{
+		if(!isIn(mesh[s[0].a_index])){
+			vec3[0] = mesh[s[0].a_index][0] - vex[0][0];
+			vec3[1] = mesh[s[0].a_index][1] - vex[0][1];
+			vec3[2] = mesh[s[0].a_index][2] - vex[0][2];
+		}
+		else{
+			vec3[0] = mesh[s[0].b_index][0] - vex[0][0];
+			vec3[1] = mesh[s[0].b_index][1] - vex[0][1];
+			vec3[2] = mesh[s[0].b_index][2] - vex[0][2];
+		}
+		if(determinant(vec3,vec1,vec2)==0){
+			vec1[0] = vex[0][0] - e_x0; vec1[1] = vex[0][1] - e_y0; vec1[2] = vex[0][2] - e_z0;
+			vec2[0] = vex[1][0] - e_x0; vec2[1] = vex[1][1] - e_y0; vec2[2] = vex[1][2] - e_z0;
+			vec3[0] = vex[2][0] - e_x0; vec3[1] = vex[2][1] - e_y0; vec3[2] = vex[2][2] - e_z0;
+			if(determinant(vec3,vec1,vec2)<0){
+				SurfaceCoord t;
+				t = s[1];
+				s[1] = s[2];
+				s[2] = t;
+			}
+		}
+
+		else if(determinant(vec3,vec1,vec2)<0){
+			SurfaceCoord t;
+			t = s[1];
+			s[1] = s[2];
+			s[2] = t;
+		}
+	}
+
+	return 0;
+}
+
+
+int tetra_to_wff(vector<Tetras> &tet, PointsXYZ &points)
+{
+    FILE *fout=fopen("_pyrs.wff","w");
+    int n=points.size(),i,m=tet.size();
+
+    fprintf(fout,"# points %d  pyrs %d\n",n,m);
+
+    for(i=0;i<n;i++)
+        fprintf(fout,"v %g %g %g\n",points[i][0],points[i][1],points[i][2]);
+
+    for(i=0;i<m;i++)
+    {
+        int q=1;
+
+        int i1=tet[i][0]+q;
+        int i2=tet[i][1]+q;
+        int i3=tet[i][2]+q;
+        int i4=tet[i][3]+q;
+
+        fprintf(fout,"f %d %d %d\n",i1,i2,i3);
+        fprintf(fout,"f %d %d %d\n",i4,i2,i3);
+        fprintf(fout,"f %d %d %d\n",i1,i4,i3);
+        fprintf(fout,"f %d %d %d\n",i1,i2,i4);
+
+        if(i>5000)
+            break;
+    }
+
+    fclose(fout);
+
+    return 0;
+}
