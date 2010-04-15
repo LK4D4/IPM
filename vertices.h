@@ -1,5 +1,4 @@
 // Copyright (C) M.Iakobovski, E.Kornilina, A.Morozov, 2010, v.1
-
 #define nOfFuncs 5 // rho rhoder uder[3]
 #define nOfsTimeStrips 30
 

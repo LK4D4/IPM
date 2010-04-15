@@ -1,5 +1,5 @@
 // Copyright (C) M.Iakobovski, 2010, v.1
-
+#include "./funcs.h"
 int meshgen(char * name, int n);
 void tgen(std::ofstream &fout, CoordXYZ &p1, CoordXYZ &p2, CoordXYZ &p3, int &k, int n);
 

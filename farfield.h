@@ -6,7 +6,7 @@
 #include <algorithm>
 #include <limits>
 #include <fstream>
-#include "funcs.h"
+#include "./funcs.h"
 
 using std::cout;
 using std::endl;

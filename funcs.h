@@ -8,6 +8,7 @@
 #include <fstream>
 #include <cstdlib>
 #include <math.h>
+#include <pair.h>
 
 #define Copyright(name,x,y,z) \
 static char *name = "\r\n" #x " - Copyright (C) M.Iakobovski, E.Kornilina, A.Morozov, " #y " V. " #z " ";
@@ -26,6 +27,11 @@ using std::vector;
 };*/
 typedef vector <double> CoordXYZ;
 typedef vector <CoordXYZ> PointsXYZ;
+
+struct ribstruct{
+	pair<int,int> indexes;
+	double delta;
+};
 
 struct SurfaceCoord{
 	int a_index, b_index;

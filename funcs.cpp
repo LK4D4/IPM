@@ -81,10 +81,9 @@ CoordXYZ GetCoordSurf(SurfaceCoord c, PointsXYZ &m){ //выдает коорди
 delta вычисляется от меньшей по номеру вершины к большей.*/
 SurfacePoints FindSurface(Tetras a, PointsXYZ& mesh){
 	SurfaceCoord temp;
-	vector<CoordXYZ> tempc; //координаты вершин поверхности
 	SurfacePoints ret; //поверхность
 	int present[6],k=0;
-
+	static vector<ribstruct> checkedrib;
 	for(int i=0;i<6;i++) present[i]=-1;
 
 	/*
@@ -97,23 +96,53 @@ SurfacePoints FindSurface(Tetras a, PointsXYZ& mesh){
 	(2,3)
 	*/
 	int f = 1;
+	/*for (int i = 0; i < checkedrib.size();i++){
+			cout << checkedrib[i].first << " " << checkedrib[i].second << endl;
+	}*/
 //проверяем разные ребра тетраэдра на пересечения
 	for(int i = 0;i<3;i++)
 		for(int j=i+1;j<4;j++){
+			bool flag = true;
 			if(isIntersect(mesh[a[i]],mesh[a[j]])){
 				if(a[i] < a[j]){
-					CoordXYZ p = intersectSearch(mesh[a[i]],mesh[a[j]]);
-					temp.a_index=a[i]; temp.b_index=a[j];
-					temp.delta = (mydistance(mesh[a[i]],p)/mydistance(mesh[a[i]],mesh[a[j]]));
-					ret.push_back(temp);
-					tempc.push_back(p);
+					ribstruct temprib;
+					temprib.indexes = make_pair(a[i],a[j]);
+					for(int z = 0; z < checkedrib.size(); z++)
+						if(checkedrib[z].indexes == temprib.indexes) {
+							flag = false;
+							temp.a_index = checkedrib[z].indexes.first; temp.b_index = checkedrib[z].indexes.second; temp.delta = checkedrib[z].delta;
+							ret.push_back(temp);
+							break;
+						}
+
+					if(flag){
+						CoordXYZ p = intersectSearch(mesh[a[i]],mesh[a[j]]);
+						temp.a_index=a[i]; temp.b_index=a[j];
+						temp.delta = (mydistance(mesh[a[i]],p)/mydistance(mesh[a[i]],mesh[a[j]]));
+						ret.push_back(temp);
+						temprib.delta = temp.delta;
+						checkedrib.push_back(temprib);
+					}
 				}
 				else {
-					CoordXYZ p = intersectSearch(mesh[a[j]],mesh[a[i]]);
-					temp.a_index=a[j]; temp.b_index=a[i];
-					temp.delta = (mydistance(mesh[a[j]],p)/mydistance(mesh[a[i]],mesh[a[j]]));
-					ret.push_back(temp);
-					tempc.push_back(p);
+					ribstruct temprib;
+					temprib.indexes = make_pair(a[j],a[i]);
+					for(int z = 0; z < checkedrib.size(); z++)
+						if(checkedrib[z].indexes == temprib.indexes) {
+							flag = false;
+							temp.a_index = checkedrib[z].indexes.first; temp.b_index = checkedrib[z].indexes.second; temp.delta = checkedrib[z].delta;
+							ret.push_back(temp);
+							break;
+						}
+
+					if(flag){
+						CoordXYZ p = intersectSearch(mesh[a[j]],mesh[a[i]]);
+						temp.a_index=a[j]; temp.b_index=a[i];
+						temp.delta = (mydistance(mesh[a[j]],p)/mydistance(mesh[a[i]],mesh[a[j]]));
+						ret.push_back(temp);
+						temprib.delta = temp.delta;
+						checkedrib.push_back(temprib);
+					}
 				}
 				present[f]=k++; f++;
 			}
@@ -128,16 +157,7 @@ SurfacePoints FindSurface(Tetras a, PointsXYZ& mesh){
                 cout << " ERROR CheckAndMoveInside!\n" << endl;
                 exit(0);
             }
-//        cout<< present[0] << " " <<present[1] << " " <<present[2] << " " <<present[3] << " " <<present[4] << " " <<present[5] << endl << endl;
-
     }
-    /*CoordXYZ te;
-	for(int i = 0; i < ret.size(); i++){
-		te = GetCoordSurf(ret[i],mesh);
-		for(int j = 0; j < a.size(); j++){
-			if(te[0] == mesh[a[j]][0] && te[1] == mesh[a[j]][1] && te[2] == mesh[a[j]][2]) cout << "MARK!" << endl;
-		}
-	}*/
 	return ret;
 }
 

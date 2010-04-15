@@ -34,7 +34,7 @@ int main(int argc, char *argv[])
 
     strncpy(p_outdir,"./",10000);
 
-    strncpy(p_meshdir,argv[1],10000);
+	strncpy(p_meshdir,argv[1],10000);
 
     sscanf(argv[2],"%le",&p_DeltaT);
     sscanf(argv[3],"%le",&p_xc);
@@ -61,7 +61,6 @@ int main(int argc, char *argv[])
     sscanf(argv[10],"%le",&p_T1);
     sscanf(argv[11],"%le",&p_T2);
     }
-
     p_omega=M_PI;
     if(argc>=13)
         sscanf(argv[12],"%le",&p_omega);
@@ -89,11 +88,9 @@ int main(int argc, char *argv[])
 //    test_of_basepoint(); exit(0);
 
 	int numc, numt; //количество узлов и тетраэдров
-
     #define NN 10000
     char name[NN+1];
-
-    strncpy(name,p_meshdir,NN);
+	strncpy(name,p_meshdir,NN);
     strncat(name,"/mesh.msh",NN);
     std::ifstream meshf(name);
 	if(!meshf) { cout << "Unable to find file " << name << "\n"; exit(1); }
@@ -101,6 +98,7 @@ int main(int argc, char *argv[])
 	meshf.close();
 
     cout << "\n numc=" << numc << " numt=" << numt << endl ;
+
 
     strncpy(name,p_meshdir,NN);
     strncat(name,"/coordinate.msh",NN);
@@ -202,7 +200,7 @@ int main(int argc, char *argv[])
 //	CheckTrgSurface(SurfaceList,mesh);
 //	CheckTrgSurface(SurfaceList,mesh);
 
-//	PutSurface("surf_0.txt",SurfaceList,mesh);
+	//PutSurface("surf_0.txt",SurfaceList,mesh);
 
 	CreateWff(strcat(p_outdir,"_surf_trangles.wff"),SurfaceList,mesh);
 
